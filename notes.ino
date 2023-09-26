@@ -1,3 +1,4 @@
+
 #include <DFMiniMp3.h>
 #include <LiquidCrystal.h>
 
@@ -14,7 +15,7 @@ int buttonState = 0;  // variable for reading the pushbutton status
 bool isNotePlaying;
 class Mp3Notify; 
 typedef DFMiniMp3<HardwareSerial, Mp3Notify> DfMp3; 
-DfMp3 dfmp3(Serial2);
+DfMp3 dfmp3(Serial3);
 
 // game logic
 const int GAME_MODE_PRACTICE = 0;
@@ -25,7 +26,7 @@ int gameMode = GAME_MODE_UNDEF;
 int simonNotesLength;
 int simonNotes[100];  // the sequence of notes to guess.
 
-const int TOTAL_NUM_TRIES = 1;  // this is hard, give user a few tries.
+const int TOTAL_NUM_TRIES = 2;  // this is hard, give user a few tries.
 int numTries;
 
 const int SOUND_CORRECT = 8;
@@ -52,6 +53,13 @@ void getCardStats()
 
 /* Runs every time we lose or turn on. */
 void start_over() { 
+    // initialize the input pins
+  for (int i=0; i<NUM_PINS; i+=2)
+  {
+    int pin = BASE_PIN + i;
+    pinMode(pin, INPUT);
+  }
+
   Serial.println("Starting Over");
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -89,8 +97,6 @@ void setup() {
   }
   dfmp3.begin();
   getCardStats();
-
-  start_over();
 }
 
 void waitMilliseconds(uint16_t msWait)
@@ -108,6 +114,10 @@ void waitMilliseconds(uint16_t msWait)
 }
 
 void play_piano() { 
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Play a practice note");
+      
   uint32_t pressedKeysStart[NUM_PINS];
   for (int i=0; i<NUM_PINS; i+=2)
   {
@@ -127,7 +137,7 @@ void play_piano() {
             pressedKeysStart[i] = millis();
             Serial.println("First press.");
           }
-          else if (now - pressedKeysStart[i] > 100) { // held for half second, good key press.
+          else if (now - pressedKeysStart[i] > 100) { // held for Xms, good key press.
             Serial.println("Registered a keypress.");
             int note = (pin-BASE_PIN)/2 + 1;
             String noteS = "";
@@ -146,10 +156,10 @@ void play_piano() {
             else if (note == 5) {
               noteS = "G";
             }
-            else if (note == 7) {
+            else if (note == 6) {
               noteS = "A";
             }
-            else if (note == 8) {
+            else if (note == 7) {
               noteS = "B";
             }
 
@@ -255,7 +265,7 @@ void play_user() {
             lastKeyPressed = -1;
             Serial.println("First press.");
           }
-          else if (now - pressedKeysStart[i] > 300 && lastKeyPressed != i) { // key held for x ms, good key press.
+          else if (now - pressedKeysStart[i] > 200 && lastKeyPressed != i) { // key held for x ms, good key press.
             numUserKeys ++;  
             Serial.println("Registered a keypress.");
             lastKeyPressed = i;
@@ -285,6 +295,7 @@ void play_user() {
 }
 
 void set_game_mode() { 
+  Serial.println("Game Mode: " + String(gameMode));
   if (gameMode == GAME_MODE_UNDEF) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -295,23 +306,27 @@ void set_game_mode() {
     lcd.print("  2 for Game Play");
 
     // wait for user input
-    for (int i=0; i<NUM_PINS; i+=2) // only using even pins
-    {
-      uint32_t now = millis();
- 
-      int pin = BASE_PIN + i;
-      buttonState = digitalRead(pin);
-      if (buttonState == HIGH) {
-        int note = (pin-BASE_PIN)/2 + 1;
-
-        if (note == 1) { 
-          gameMode = GAME_MODE_PRACTICE;
-          Serial.println("Your game mode is Practice.");
+    while (gameMode == GAME_MODE_UNDEF) {
+      for (int i=0; i<NUM_PINS; i+=2) // only using even pins
+      {
+        uint32_t now = millis();
+        int pin = BASE_PIN + i;
+        buttonState = digitalRead(pin);
+        if (buttonState == HIGH) {
+          int note = (pin-BASE_PIN)/2 + 1;
+          if (note == 1) { 
+            gameMode = GAME_MODE_PRACTICE;
+            Serial.println("Your game mode is Practice.");
+          }
+          else {
+            gameMode = GAME_MODE_PLAY;
+            Serial.println("Your game mode is Play.");
+            start_over();
+          }
+          Serial.println("Waiting for depress.");
+          waitMilliseconds(1500);  //wait for user to depress the key 
         }
-        else {
-          gameMode = GAME_MODE_PLAY;
-          Serial.println("Your game mode is Play.");
-        }
+      waitMilliseconds(50);
       }
     }
   }
@@ -319,7 +334,6 @@ void set_game_mode() {
 
 void loop() {
   set_game_mode();
-  gameMode = GAME_MODE_PRACTICE;
   if (gameMode == GAME_MODE_PLAY) {
     play_simon();  
     play_user();
