@@ -1,2 +1,2 @@
-Code for the Arduino Due game, Notes.
+Code for the Arduino game, Notes.
 https://www.youtube.com/@ALittleTech
