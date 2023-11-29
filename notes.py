@@ -7,7 +7,7 @@ import time
 from pynput import keyboard
 import vlc
 
-IS_CHEAT = True
+IS_CHEAT = False
 
 # MP3 file constants
 SOUND_CORRECT = 8
